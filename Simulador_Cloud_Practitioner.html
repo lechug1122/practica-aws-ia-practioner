@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador Cloud Practitioner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE: estudio enfocado, claro y alentador, como una plataforma de formación en la nube.
+IDEA: la tarjeta de pregunta de un curso de práctica tipo Skill Builder.
+PICTURE: la propia tarjeta de pregunta con opciones grandes y la retroalimentación.
+COLOUR and TYPE: barra azul marino, acento naranja, tarjetas blancas; Inter.
+LAYOUT: una columna centrada de 760px, barra de progreso arriba, tarjeta, acciones abajo.
+*/
+:root{color-scheme:light dark;
+--bg:light-dark(#f2f3f3,#0f1418);--card:light-dark(#ffffff,#1a2129);--ink:light-dark(#16191f,#e9edf1);
+--mute:light-dark(#5f6b7a,#9aa6b2);--line:light-dark(#d5dbdb,#2c3742);--nav:#232f3e;--acc:#ff9900;--acc2:light-dark(#ec7211,#ffac31);
+--ok:light-dark(#037f0c,#5fd36a);--okbg:light-dark(#f2fcf3,#0f2a14);--bad:light-dark(#d13212,#ff7a5c);--badbg:light-dark(#fff7f5,#2d1410);
+--sel:light-dark(#f1faff,#10283a);--selb:light-dark(#0073bb,#4fb3f0)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+header{background:var(--nav);color:#fff;padding:14px max(5vw,16px);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header .logo{width:34px;height:34px;border-radius:8px;background:var(--acc);display:grid;place-items:center;color:var(--nav);font-weight:700}
+header b{font-size:17px}header span{color:#c6ccd3;font-size:14px;margin-left:auto}
+main{max-width:760px;margin:0 auto;padding:clamp(20px,4vw,40px) 16px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);padding:clamp(20px,4vw,34px)}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.1;margin:0 0 10px;text-wrap:balance}
+h2{font-size:clamp(19px,3vw,22px);line-height:1.35;margin:6px 0 20px;font-weight:600;text-wrap:pretty}
+.mute{color:var(--mute)}
+.btn{font:600 16px Inter,sans-serif;border-radius:22px;padding:11px 26px;min-height:44px;border:2px solid transparent;cursor:pointer;background:var(--acc);color:#16191f}
+.btn:hover{filter:brightness(1.05)}.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.sec{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn:focus-visible,.opt:focus-within{outline:3px solid var(--selb);outline-offset:2px}
+.top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--mute);margin-bottom:8px}
+.bar{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin-bottom:22px}
+.bar i{display:block;height:100%;background:var(--acc);width:0;transition:width .35s}
+.tag{display:inline-block;font-size:13px;font-weight:600;background:var(--sel);color:var(--selb);padding:3px 10px;border-radius:12px}
+.opts{display:grid;gap:10px}
+.opt{display:flex;gap:12px;align-items:flex-start;border:2px solid var(--line);border-radius:10px;padding:13px 15px;cursor:pointer;transition:border-color .15s,background .15s}
+.opt:hover{border-color:var(--selb)}
+.opt input{margin:4px 0 0;width:18px;height:18px;accent-color:var(--selb);flex:none}
+.opt .l{font-weight:700;color:var(--mute);flex:none;width:18px}
+.opt.on{border-color:var(--selb);background:var(--sel)}
+.opt.right{border-color:var(--ok);background:var(--okbg)}
+.opt.wrong{border-color:var(--bad);background:var(--badbg)}
+.locked .opt{cursor:default}
+.fb{margin-top:20px;border-radius:10px;padding:16px 18px;border-left:6px solid}
+.fb.ok{background:var(--okbg);border-color:var(--ok)}.fb.no{background:var(--badbg);border-color:var(--bad)}
+.fb strong{display:block;font-size:18px;margin-bottom:4px}.fb.ok strong{color:var(--ok)}.fb.no strong{color:var(--bad)}
+.fb p{margin:6px 0 0}
+.act{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;flex-wrap:wrap}
+.score{display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:center;margin:18px 0 8px}
+.ring{width:170px;height:170px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--c) calc(var(--p)*1%),var(--line) 0)}
+.ring div{width:132px;height:132px;border-radius:50%;background:var(--card);display:grid;place-items:center;text-align:center}
+.ring b{font-size:44px;line-height:1}.ring small{color:var(--mute);font-size:14px}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.stats div{border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:14px}
+.stats b{display:block;font-size:20px}
+.rev{margin-top:28px}.rev h3{font-size:18px;margin:0 0 12px}
+.ri{border-top:1px solid var(--line);padding:14px 0}.ri p{margin:4px 0}
+.ri .q{font-weight:600}.ri .y{color:var(--bad)}.ri .c{color:var(--ok)}
+.set{display:grid;gap:14px;margin:0 0 22px;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.set label{display:grid;gap:6px;font-weight:600;font-size:15px}
+.set input,.set select{font:16px Inter,sans-serif;padding:10px 12px;min-height:44px;border:1.5px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);width:100%}
+ul.rules{padding-left:20px;margin:14px 0 22px}ul.rules li{margin:4px 0}
+.vt{margin-left:auto;font:600 14px Inter,sans-serif;background:transparent;color:#fff;border:1.5px solid #5a6b7d;border-radius:18px;padding:7px 14px;min-height:40px;cursor:pointer}
+.vt[aria-pressed=true]{border-color:var(--acc);color:var(--acc)}
+.va{display:flex;gap:14px;align-items:center;margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);flex-wrap:wrap}
+.av{width:52px;height:52px;border-radius:50%;background:var(--nav);display:grid;place-items:center;flex:none;position:relative}
+.av svg{width:30px;height:30px}
+.av::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:3px solid var(--acc);opacity:0}
+.talk .av::after{animation:pulse 1.1s ease-out infinite}
+@keyframes pulse{0%{transform:scale(.9);opacity:.9}100%{transform:scale(1.25);opacity:0}}
+.va .msg{flex:1;min-width:180px;font-size:15px}
+.va .msg b{display:block}
+.vb{font:600 14px Inter,sans-serif;border-radius:18px;padding:8px 14px;min-height:40px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+@media(max-width:600px){.score{grid-template-columns:1fr;justify-items:center;text-align:center}.stats{justify-content:center}.act .btn{flex:1}header span{margin-left:0;width:100%}.vt{margin-left:0}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header><div class="logo">☁</div><b>Simulador Cloud Practitioner</b><span>Examen de práctica · 65 preguntas</span><button class="vt" id="vt" aria-pressed="true">🔊 Asistente de voz: activado</button></header>
+<main id="app"></main>
+<script>
+{
+const Q=[
+{t:"Una compañía necesita contratar consultores externos para ayudar a mantener y dar soporte a su entorno de AWS y a sus necesidades empresariales. ¿Qué servicio o recurso de AWS satisfará estos requisitos?",o:["Soporte de AWS","AWS Organizations","Catálogo de servicios de AWS","Red de socios de AWS (APN)"],a:[3],e:"La AWS Partner Network (APN) agrupa a consultores y empresas externas certificadas que ayudan a diseñar, migrar y operar entornos de AWS. AWS Support es el soporte técnico de AWS mismo, no consultores externos."},
+{t:"¿Qué servicios de AWS utilizan ubicaciones de borde globales? (Seleccione DOS.)",o:["AWS Fargate","Amazon CloudFront","AWS Global Accelerator","AWS Wavelength","Amazon VPC"],a:[1,2],e:"CloudFront (CDN) almacena contenido en caché en las ubicaciones de borde, y Global Accelerator usa la red de borde de AWS para dirigir el tráfico por la ruta óptima. Wavelength usa zonas en redes 5G de operadores, no ubicaciones de borde."},
+{t:"Según el modelo de responsabilidad compartida de AWS, ¿quién es responsable de la capa de virtualización hasta la seguridad física de las instalaciones en las que operan los servicios de AWS?",o:["Es responsabilidad exclusiva del cliente","Es responsabilidad exclusiva de AWS","Es una responsabilidad compartida entre AWS y el cliente","Es responsabilidad del socio de AWS que gestiona la cuenta"],a:[1],e:"AWS es responsable de la seguridad DE la nube: hardware, hipervisor/virtualización, red física e instalaciones. El cliente es responsable de la seguridad EN la nube (datos, SO invitado, configuración)."},
+{t:"¿Qué beneficio de AWS demuestran los servicios tecnológicos bajo demanda que permiten a las empresas sustituir los gastos fijos iniciales por gastos variables?",o:["Alta disponibilidad","Economías de escala","Pago por uso","Alcance mundial"],a:[2],e:"El pago por uso (pay-as-you-go) cambia el gasto de capital (CapEx) por gasto variable (OpEx): solo pagas lo que consumes. Las economías de escala se refieren a precios más bajos gracias al volumen agregado de AWS."},
+{t:"Una empresa quiere un servicio totalmente gestionado que pueda transferir datos de streaming desde múltiples fuentes a un bucket de Amazon S3. ¿Qué servicio debería utilizar?",o:["AWS DataSync","Amazon Kinesis Data Firehose","S3 Select","AWS Transfer Family"],a:[1],e:"Kinesis Data Firehose captura datos de streaming y los entrega automáticamente a destinos como S3, Redshift u OpenSearch. DataSync transfiere archivos (no streaming) y Transfer Family es para SFTP/FTP."},
+{t:"¿Qué servicio de AWS es una solución de entrega y despliegue continuos?",o:["AWS AppSync","AWS CodePipeline","AWS Cloud9","AWS CodeArtifact"],a:[1],e:"CodePipeline orquesta el flujo de CI/CD (compilar, probar, desplegar) de forma automática. AppSync es para APIs GraphQL, Cloud9 es un IDE en la nube y CodeArtifact es un repositorio de paquetes."},
+{t:"¿Qué afirmación describe mejor la infraestructura global de AWS?",o:["La infraestructura de AWS es un único centro de datos de gran tamaño replicado en cada país","La infraestructura de AWS consta de subredes que contienen varias zonas de disponibilidad con varios centros de datos situados en la misma ubicación geográfica","AWS permite a los usuarios elegir Regiones de AWS y centros de datos para que puedan seleccionar los centros de datos más cercanos en diferentes Regiones","La infraestructura de AWS se compone de Regiones aisladas con zonas de disponibilidad independientes conectadas mediante redes de baja latencia y fuentes de alimentación redundantes"],a:[3],e:"Cada Región está aislada y contiene varias zonas de disponibilidad (AZ) independientes, con energía redundante y conectadas por redes de baja latencia. Los clientes eligen Región y AZ, pero no centros de datos específicos."},
+{t:"¿Cuál de los siguientes es un componente de la infraestructura global de AWS?",o:["Amazon Alexa","Regiones de AWS","Amazon Lightsail","AWS Organizations"],a:[1],e:"La infraestructura global se compone de Regiones, zonas de disponibilidad, ubicaciones de borde, Local Zones, etc. Lightsail y Organizations son servicios, no componentes de infraestructura."},
+{t:"¿Qué servicio de AWS proporciona recomendaciones inteligentes para mejorar la calidad del código e identificar las líneas de código más costosas de una aplicación?",o:["Amazon CodeGuru","AWS CodeStar","AWS CodeCommit","AWS CodeDeploy"],a:[0],e:"Amazon CodeGuru usa machine learning: CodeGuru Reviewer revisa calidad del código y CodeGuru Profiler identifica las líneas más costosas en rendimiento y costo."},
+{t:"¿Cuál de las siguientes es una base de datos totalmente gestionada compatible con MySQL?",o:["Amazon S3","Amazon DynamoDB","Amazon Redshift","Amazon Aurora"],a:[3],e:"Amazon Aurora es una base de datos relacional gestionada compatible con MySQL y PostgreSQL. DynamoDB es NoSQL, Redshift es data warehouse y S3 es almacenamiento de objetos."},
+{t:"Un equipo de desarrollo desea implementar varios entornos de prueba para una aplicación de forma rápida y repetible. ¿Qué servicio de AWS debería utilizar?",o:["Amazon EC2","AWS CloudFormation","Amazon QuickSight","Amazon ECS"],a:[1],e:"CloudFormation es infraestructura como código: defines los recursos en una plantilla y puedes crear entornos idénticos una y otra vez de forma automática."},
+{t:"Una compañía necesita un servicio de base de datos de grafos que sea escalable y altamente disponible. ¿Qué servicio de AWS cumple estos requisitos?",o:["Amazon Aurora","Amazon Redshift","Amazon DynamoDB","Amazon Neptune"],a:[3],e:"Amazon Neptune es la base de datos de grafos gestionada de AWS (relaciones entre nodos, redes sociales, recomendaciones, detección de fraude)."},
+{t:"Una compañía está considerando cambiar de AWS Business Support a AWS Enterprise Support. ¿Qué beneficio adicional recibirá?",o:["Un conjunto completo de comprobaciones de AWS Trusted Advisor","Acceso telefónico, por correo y chat a ingenieros de soporte 24/7","Un gestor técnico de cuentas (TAM) designado para ayudar en la supervisión y optimización"],a:[2],e:"El TAM designado es exclusivo de Enterprise Support. Business ya incluye todas las comprobaciones de Trusted Advisor y acceso 24/7 a ingenieros por teléfono, correo y chat."},
+{t:"Una empresa quiere minimizar la latencia y realizar operaciones de computación para su aplicación web lo más cerca posible de los usuarios finales. ¿Qué servicio o componente de infraestructura proporcionará esta funcionalidad?",o:["Regiones de AWS","Zonas de disponibilidad","Ubicaciones de borde","AWS Direct Connect"],a:[2],e:"Las ubicaciones de borde están distribuidas cerca de los usuarios finales; con CloudFront y Lambda@Edge/CloudFront Functions puedes ejecutar cómputo allí y reducir la latencia."},
+{t:"¿Qué servicios de AWS puede utilizar una empresa para transferir datos on-premise a la nube de AWS? (Seleccione DOS.)",o:["AWS Snowcone","AWS Transit Gateway","AWS DataSync","AWS Backup","Amazon Connect"],a:[0,2],e:"Snowcone es un dispositivo físico de la familia Snow para mover datos, y DataSync transfiere datos en línea de forma automatizada. Transit Gateway conecta redes, Backup respalda recursos y Connect es un centro de contacto."},
+{t:"¿Cuál de las siguientes es una ventaja que la nube de AWS proporciona a los usuarios?",o:["Los usuarios no tienen que adivinar los requisitos de capacidad de la infraestructura","Los usuarios reducen sus costes variables al mantener la propiedad exclusiva del hardware","Los usuarios mantienen el control del hardware de la infraestructura subyacente","Los usuarios mantienen el control del sistema operativo para los servicios administrados"],a:[0],e:"'Dejar de adivinar la capacidad' es una de las seis ventajas de la nube: escalas hacia arriba o abajo según la demanda real. El hardware y el SO de servicios administrados los controla AWS."},
+{t:"Una empresa desea comprometerse por adelantado al uso continuado de sus instancias EC2 de producción a cambio de un coste reducido. ¿Qué opciones de precios cumplen estos requisitos con el menor coste? (Seleccione DOS.)",o:["Instancias Spot","Instancias bajo demanda","Instancias reservadas","Savings Plans","Hosts dedicados"],a:[2,3],e:"Instancias reservadas y Savings Plans ofrecen grandes descuentos a cambio de un compromiso de 1 o 3 años. Spot es barato pero no implica compromiso y puede interrumpirse."},
+{t:"Una empresa administra una base de datos MySQL on-premise en un servidor Windows y quiere migrarla a AWS reduciendo la sobrecarga administrativa. ¿Qué servicio cumplirá este requisito?",o:["Amazon Redshift","Amazon ElastiCache","Amazon RDS","Amazon EFS"],a:[2],e:"Amazon RDS es una base de datos relacional administrada (MySQL incluido): AWS se encarga de parches, backups y alta disponibilidad."},
+{t:"Una empresa necesita buscar texto en documentos almacenados en Amazon S3. ¿Qué servicio de AWS cumplirá estos requisitos?",o:["Amazon Kendra","Amazon Rekognition","Amazon Polly","Amazon Lex"],a:[0],e:"Amazon Kendra es un servicio de búsqueda inteligente con ML que indexa documentos (incluido S3). Rekognition analiza imágenes, Polly convierte texto a voz y Lex crea chatbots."},
+{t:"Una compañía quiere revisar periódicamente su cuenta de AWS para encontrar oportunidades de optimización de costes. ¿Qué servicio o herramienta puede utilizar?",o:["AWS Cost Explorer","AWS Trusted Advisor","Calculadora de precios de AWS","AWS Artifact"],a:[1],e:"Trusted Advisor revisa tu cuenta y da recomendaciones concretas de optimización de costes (recursos infrautilizados, instancias inactivas, etc.). Cost Explorer visualiza gastos pero no da recomendaciones de buenas prácticas."},
+{t:"El equipo de TI gestiona clústeres MySQL, aplica parches y hace snapshots de backup. La empresa quiere trasladarlo a AWS para que estas tareas se realicen automáticamente. ¿Qué debería hacer?",o:["Implementar clústeres MySQL en instancias de Amazon EC2","Utilizar Amazon RDS con una base de datos MySQL","Usar una plantilla de CloudFormation para implementar MySQL en EC2","Migrar todos los datos de MySQL a Amazon S3"],a:[1],e:"Con RDS, AWS automatiza parches y backups/snapshots. En EC2 (con o sin CloudFormation) seguirías siendo responsable de esas tareas."},
+{t:"¿Qué mecanismo permite a los desarrolladores acceder a los servicios de AWS desde el código de la aplicación?",o:["Kit de desarrollo de software de AWS (SDK)","Consola de administración de AWS","AWS CodePipeline","AWS Config"],a:[0],e:"Los SDK de AWS (Python/boto3, Java, JavaScript, .NET…) permiten llamar a las APIs de AWS directamente desde el código."},
+{t:"Una empresa ha migrado sus cargas a AWS y desea adoptar AWS a escala y operar de forma más eficiente y segura. ¿Qué servicio o marco debería usar para el soporte operativo?",o:["AWS Support","AWS Cloud Adoption Framework (AWS CAF)","AWS Managed Services (AMS)","AWS Well-Architected Framework"],a:[2],e:"AWS Managed Services opera la infraestructura por ti (parches, monitorización, seguridad, backups), ayudando a adoptar AWS a escala de forma eficiente y segura."},
+{t:"Una compañía quiere usar AWS CAF para definir y hacer seguimiento de los resultados empresariales en su transformación a la nube. ¿Qué capacidad de la perspectiva de gobernanza cumple esto?",o:["Gestión de beneficios","Gestión de riesgos","Gestión de la cartera de aplicaciones","Gestión financiera en la nube"],a:[0],e:"La gestión de beneficios (Benefits management) en la perspectiva de gobernanza del CAF se centra en definir, medir y dar seguimiento a los resultados de negocio de la inversión en la nube."},
+{t:"Si una empresa desea crear un chatbot interactivo para que un centro de llamadas sea más eficiente, ¿qué servicio de AWS debería utilizar?",o:["Amazon Connect","Amazon Lex","Amazon Translate","Amazon Polly"],a:[1],e:"Amazon Lex crea interfaces conversacionales (chatbots de voz y texto) — es la tecnología de Alexa. Connect es el centro de contacto en sí, que puede integrar Lex."},
+{t:"¿Qué servicio o característica de AWS puede utilizar una empresa para crear un entorno de red privado, seguro y escalable en la nube de AWS?",o:["Amazon ECS","Amazon S3","Amazon VPC","AWS Direct Connect"],a:[2],e:"Amazon VPC (Virtual Private Cloud) crea una red virtual aislada lógicamente donde controlas subredes, rutas, gateways y seguridad."},
+{t:"¿Cuáles son características de una aplicación sin servidor (serverless) en AWS? (Seleccione DOS.)",o:["Los usuarios deben configurar manualmente instancias de EC2","Los usuarios pueden elegir entre varios sistemas operativos","La aplicación incorpora tolerancia a fallos","Los usuarios pueden ejecutar instancias Spot de EC2","La aplicación puede escalar en función de la demanda"],a:[2,4],e:"Serverless (Lambda, Fargate, DynamoDB…) trae alta disponibilidad/tolerancia a fallos integrada y escala automáticamente. No gestionas servidores, SO ni instancias."},
+{t:"Una empresa opera varias fábricas y necesita procesar y almacenar datos y ejecutar aplicaciones con interdependencias de sistemas locales que requieren baja latencia. ¿Qué servicio debería utilizar?",o:["AWS IoT Greengrass","AWS Lambda","AWS Outposts","AWS Snowball Edge"],a:[2],e:"AWS Outposts lleva infraestructura y servicios de AWS a tus propias instalaciones para cargas que requieren baja latencia con sistemas locales."},
+{t:"Una compañía necesita almacenar de forma segura credenciales que una aplicación usa para conectarse a una base de datos, con la MÍNIMA sobrecarga operativa. ¿Qué servicio cumple esto?",o:["AWS Key Management Service (KMS)","AWS Secrets Manager","AWS Artifact","Amazon GuardDuty"],a:[1],e:"Secrets Manager almacena, cifra y rota automáticamente credenciales de bases de datos y claves de API. KMS gestiona claves de cifrado, no secretos de aplicación."},
+{t:"Una empresa desea utilizar una instancia EC2 que tenga un firewall de terceros preinstalado. ¿Qué servicio puede proporcionar esta solución?",o:["Grupos de seguridad","AWS Marketplace","AWS Systems Manager","AWS Certificate Manager (ACM)"],a:[1],e:"AWS Marketplace ofrece AMIs y software de terceros (firewalls, appliances, etc.) listos para desplegar en EC2."},
+{t:"¿Qué servicio de AWS es un servicio de control de versiones totalmente hospedado?",o:["AWS CodeCommit","AWS CodeBuild","AWS CodeDeploy","AWS CodeStar"],a:[0],e:"CodeCommit aloja repositorios Git privados gestionados. CodeBuild compila/prueba, CodeDeploy despliega y CodeStar gestiona proyectos."},
+{t:"¿Qué servicio admite el análisis, la investigación y la identificación de la causa raíz de eventos de seguridad y actividades sospechosas en una cuenta de AWS?",o:["Amazon Inspector","Amazon Macie","Amazon Detective","Amazon CloudWatch"],a:[2],e:"Amazon Detective investiga y analiza la causa raíz de hallazgos de seguridad. GuardDuty detecta amenazas; Detective ayuda a investigarlas."},
+{t:"¿Qué puede usar un profesional de la nube para obtener documentos de seguridad y conformidad de AWS y presentarlos como prueba a un auditor o regulador?",o:["AWS Certificate Manager","AWS Systems Manager","AWS Artifact","Amazon Inspector"],a:[2],e:"AWS Artifact es el portal de autoservicio para descargar informes de cumplimiento (SOC, ISO, PCI) y acuerdos con AWS."},
+{t:"Una compañía anima a sus equipos a probar escenarios de fallos con regularidad y validar su comprensión del impacto de posibles fallos. ¿Qué pilar del Well-Architected Framework representa esta filosofía?",o:["Excelencia operativa","Optimización de costes","Eficiencia del rendimiento","Seguridad"],a:[0],e:"'Anticipar los fallos' (realizar ejercicios pre-mortem y probar escenarios de fallo) es un principio de diseño del pilar de Excelencia operativa."},
+{t:"Una empresa quiere añadir y eliminar automáticamente instancias EC2 para ajustarse dinámicamente a cargas variables. ¿Qué servicio o característica cumplirá esto?",o:["Amazon DynamoDB","Instancias Spot de EC2","Familia AWS Snow","Amazon EC2 Auto Scaling"],a:[3],e:"EC2 Auto Scaling aumenta o reduce el número de instancias automáticamente según la demanda o políticas definidas."},
+{t:"Una empresa debe entregar datos en tiempo real desde un centro de datos on-premise a una aplicación en AWS y necesita una conexión de red consistente con latencia mínima. ¿Qué debería usar?",o:["AWS Direct Connect","AWS Site-to-Site VPN","Gateway de Internet","Gateway NAT"],a:[0],e:"Direct Connect es una conexión de red dedicada y privada a AWS, con rendimiento consistente y baja latencia. La VPN viaja por Internet, por lo que su latencia es variable."},
+{t:"¿Qué beneficio de la nube de AWS se logra gracias a las Regiones, zonas de disponibilidad y ubicaciones de borde?",o:["Economías de escala","Alcance mundial","Agilidad","Alta disponibilidad"],a:[1],e:"La presencia de Regiones, AZ y ubicaciones de borde por todo el mundo permite desplegar globalmente en minutos: 'hacerse global en minutos' (alcance mundial)."},
+{t:"Un usuario tiene una carga de trabajo con estado que se ejecutará en Amazon EC2 durante los próximos 3 años. ¿Cuál es el modelo de precios MÁS rentable?",o:["Instancias bajo demanda","Instancias reservadas","Instancias dedicadas","Instancias Spot"],a:[1],e:"Para uso continuo y predecible de 3 años, las instancias reservadas dan hasta ~72% de descuento. Spot puede interrumpirse, lo que no sirve para una carga con estado."},
+{t:"Una empresa necesita un servicio que monitorice continuamente su cuenta en busca de actividad sospechosa y permita iniciar acciones automatizadas contra las amenazas identificadas. ¿Qué servicio cumplirá esto?",o:["AWS Trusted Advisor","Amazon Detective","Amazon Inspector","Amazon GuardDuty"],a:[3],e:"GuardDuty detecta amenazas continuamente (analiza CloudTrail, VPC Flow Logs, DNS) y sus hallazgos pueden disparar respuestas automáticas con EventBridge y Lambda."},
+{t:"Los empleados de una empresa cambian a menudo de equipo y se necesitan permisos apropiados a sus responsabilidades. ¿Qué recurso de IAM cumple esto con la MENOR sobrecarga operativa?",o:["Grupos de usuarios de IAM","Roles de IAM","Perfiles de instancia de IAM","Políticas de IAM para usuarios individuales"],a:[0],e:"Asignas políticas a grupos (por equipo) y solo mueves al usuario de un grupo a otro cuando cambia de equipo. Las políticas individuales generan mucha más administración."},
+{t:"Una empresa desea usar la nube de AWS para implementar una aplicación de forma global. ¿Qué modelo de despliegue debería utilizar?",o:["Multirregión","Una sola Región","Multi-AZ","Single-AZ"],a:[0],e:"Para llegar a usuarios en distintas partes del mundo se despliega en varias Regiones. Multi-AZ da alta disponibilidad, pero dentro de una sola Región."},
+{t:"Una empresa sospecha que sus recursos de AWS se están utilizando para actividades ilegales. ¿A qué equipo de AWS debe informar?",o:["Equipo de abuso de AWS (AWS Abuse)","Equipo de AWS Support","Gestores técnicos de cuentas de AWS","Equipo de servicios profesionales de AWS"],a:[0],e:"El equipo AWS Trust & Safety (Abuse) atiende reportes de uso indebido: spam, ataques, contenido ilegal, etc."},
+{t:"Una empresa desea comparar los costes de su infraestructura local con los de ejecutarla en la nube de AWS. ¿Cómo debería hacer esta comparación?",o:["Revisar el modelo de responsabilidad compartida","Auditar los costes de licencias de software y hardware existentes","Analizar el marco Well-Architected","Utilizar Migration Evaluator"],a:[3],e:"Migration Evaluator (antes TSO Logic) analiza tu entorno actual y crea un caso de negocio comparando el coste on-premise con el de AWS."},
+{t:"El uso de Amazon ECS para descomponer una arquitectura monolítica en microservicios es un ejemplo de:",o:["Una arquitectura débilmente acoplada","Una arquitectura estrechamente acoplada","Una arquitectura sin estado","Una arquitectura con estado"],a:[0],e:"Los microservicios son independientes entre sí: un fallo o cambio en uno no afecta a los demás. Eso es acoplamiento débil (loose coupling)."},
+{t:"¿Qué servicio de AWS proporciona almacenamiento de objetos con durabilidad de 11 nueves?",o:["Amazon EBS","Amazon S3","Amazon EFS","AWS Storage Gateway"],a:[1],e:"Amazon S3 es almacenamiento de objetos con durabilidad del 99.999999999%. EBS es almacenamiento en bloque y EFS es sistema de archivos."},
+{t:"Una empresa necesita archivar datos durante 10 años que casi nunca se consultan, al menor coste posible. ¿Qué clase de almacenamiento es la mejor opción?",o:["S3 Standard","S3 Standard-IA","S3 Glacier Deep Archive","S3 One Zone-IA"],a:[2],e:"Glacier Deep Archive es la clase más barata de S3, diseñada para archivado a largo plazo con recuperación en horas."},
+{t:"¿Qué servicio se usa para supervisar métricas de recursos (por ejemplo, uso de CPU de EC2) y crear alarmas?",o:["AWS CloudTrail","Amazon CloudWatch","AWS Config","AWS X-Ray"],a:[1],e:"CloudWatch recopila métricas, logs y permite crear alarmas y paneles. CloudTrail registra llamadas a la API (quién hizo qué)."},
+{t:"Una empresa necesita saber qué usuario eliminó un bucket de S3 y cuándo. ¿Qué servicio proporciona esta información?",o:["Amazon CloudWatch","AWS CloudTrail","Amazon Inspector","AWS Trusted Advisor"],a:[1],e:"CloudTrail registra todas las llamadas a la API de la cuenta: quién, qué acción, cuándo y desde dónde. Es la herramienta de auditoría."},
+{t:"¿Qué servicio de AWS protege las aplicaciones contra ataques de denegación de servicio distribuido (DDoS)?",o:["AWS Shield","Amazon Macie","AWS IAM","Amazon Cognito"],a:[0],e:"AWS Shield protege contra DDoS: Shield Standard es gratuito y automático; Shield Advanced agrega protección extendida y equipo de respuesta."},
+{t:"Una empresa quiere bloquear ataques de inyección SQL y cross-site scripting (XSS) en su aplicación web. ¿Qué servicio debe usar?",o:["AWS WAF","AWS Shield Standard","Grupos de seguridad","ACL de red"],a:[0],e:"AWS WAF es un firewall de aplicaciones web (capa 7) que filtra peticiones HTTP con reglas contra SQLi, XSS y más. Grupos de seguridad y NACL trabajan a nivel de red (IP/puerto)."},
+{t:"¿Cuál es una práctica recomendada para proteger el usuario raíz de una cuenta de AWS?",o:["Compartir sus credenciales solo con administradores","Habilitar la autenticación multifactor (MFA)","Usarlo para las tareas diarias","Crear claves de acceso para él"],a:[1],e:"Debes habilitar MFA en la cuenta raíz, no crear claves de acceso para ella y usarla solo para tareas que la requieran. Para el día a día se usan usuarios o roles de IAM."},
+{t:"Una empresa quiere estimar el costo mensual de una arquitectura antes de desplegarla en AWS. ¿Qué herramienta debe usar?",o:["AWS Cost Explorer","Calculadora de precios de AWS","AWS Budgets","Informe de costos y uso de AWS"],a:[1],e:"La AWS Pricing Calculator estima costos de servicios antes de usarlos. Cost Explorer y CUR analizan costos que ya ocurrieron."},
+{t:"Una empresa quiere recibir una alerta cuando su gasto mensual previsto supere los 1,000 USD. ¿Qué servicio debe usar?",o:["AWS Budgets","AWS Cost Explorer","AWS Organizations","AWS Artifact"],a:[0],e:"AWS Budgets permite definir presupuestos de costo o uso y enviar alertas cuando el gasto real o previsto supera el umbral."},
+{t:"Según el modelo de responsabilidad compartida, ¿cuál es responsabilidad del cliente al usar Amazon EC2?",o:["Mantenimiento del hardware físico","Aplicar parches al sistema operativo invitado","Seguridad física del centro de datos","Mantener el hipervisor"],a:[1],e:"En EC2 (IaaS) el cliente administra el SO invitado: parches, software, firewall del SO y grupos de seguridad. AWS se ocupa del hardware, hipervisor e instalaciones."},
+{t:"¿Qué servicio de AWS es un servicio de DNS escalable y altamente disponible?",o:["Amazon Route 53","Amazon CloudFront","Elastic Load Balancing","AWS Direct Connect"],a:[0],e:"Route 53 es el servicio DNS gestionado de AWS; también registra dominios y hace comprobaciones de estado y enrutamiento."},
+{t:"¿Qué servicio distribuye automáticamente el tráfico entrante entre varias instancias EC2?",o:["Amazon Route 53","Elastic Load Balancing (ELB)","Amazon VPC","AWS Global Accelerator"],a:[1],e:"ELB (Application, Network o Gateway Load Balancer) reparte el tráfico entre destinos sanos en una o varias AZ."},
+{t:"Una empresa quiere ejecutar código en respuesta a eventos sin aprovisionar ni administrar servidores. ¿Qué servicio debe usar?",o:["Amazon EC2","AWS Lambda","Amazon Lightsail","AWS Elastic Beanstalk"],a:[1],e:"Lambda es cómputo serverless basado en eventos: solo subes el código y pagas por las invocaciones y el tiempo de ejecución."},
+{t:"Una aplicación necesita una base de datos NoSQL de clave-valor con latencia de milisegundos a cualquier escala. ¿Qué servicio cumple esto?",o:["Amazon RDS","Amazon DynamoDB","Amazon Redshift","Amazon Neptune"],a:[1],e:"DynamoDB es una base de datos NoSQL de clave-valor y documentos, totalmente gestionada y serverless, con latencia de un solo dígito de milisegundos."},
+{t:"Una empresa necesita un almacén de datos (data warehouse) para ejecutar consultas analíticas complejas sobre petabytes de datos. ¿Qué servicio debe usar?",o:["Amazon Redshift","Amazon DynamoDB","Amazon ElastiCache","Amazon Aurora"],a:[0],e:"Amazon Redshift es el data warehouse gestionado de AWS, optimizado para analítica (OLAP) a gran escala."},
+{t:"¿Qué servicio ofrece almacenamiento en bloque persistente para instancias EC2?",o:["Amazon S3","Amazon EBS","Amazon EFS","Amazon S3 Glacier"],a:[1],e:"Amazon EBS proporciona volúmenes de bloque (como un disco duro) que se conectan a una instancia EC2 en la misma AZ."},
+{t:"Varias instancias EC2 en distintas zonas de disponibilidad necesitan acceder al mismo sistema de archivos compartido de Linux. ¿Qué servicio debe usarse?",o:["Amazon EBS","Amazon EFS","Instance Store","Amazon S3 Glacier"],a:[1],e:"Amazon EFS es un sistema de archivos NFS gestionado y elástico al que pueden conectarse muchas instancias a la vez y desde varias AZ."},
+{t:"¿Para qué tipo de carga de trabajo son más adecuadas las instancias Spot de EC2?",o:["Bases de datos de producción críticas","Cargas flexibles y tolerantes a interrupciones, como procesamiento por lotes","Aplicaciones que requieren funcionamiento continuo de 3 años","Servidores que requieren licencias por socket"],a:[1],e:"Spot usa capacidad sobrante con hasta 90% de descuento, pero AWS puede recuperarla con 2 minutos de aviso: ideal para cargas tolerantes a interrupciones."},
+{t:"Una aplicación necesita desacoplar sus componentes usando una cola de mensajes totalmente gestionada. ¿Qué servicio debe usar?",o:["Amazon SNS","Amazon SQS","Amazon Kinesis","Amazon MQ"],a:[1],e:"Amazon SQS es una cola de mensajes gestionada que desacopla productores y consumidores. SNS es publicación/suscripción (envía a múltiples suscriptores)."},
+{t:"Una empresa quiere enviar notificaciones por correo electrónico y SMS a muchos suscriptores cuando ocurra un evento. ¿Qué servicio debe usar?",o:["Amazon SQS","Amazon SNS","Amazon SES","AWS Step Functions"],a:[1],e:"Amazon SNS usa el modelo pub/sub: un mensaje publicado en un tema se envía a todos sus suscriptores (email, SMS, Lambda, SQS, HTTP)."},
+{t:"¿Cuál de los siguientes NO es un pilar del AWS Well-Architected Framework?",o:["Sostenibilidad","Fiabilidad","Escalabilidad","Excelencia operativa"],a:[2],e:"Los seis pilares son: Excelencia operativa, Seguridad, Fiabilidad, Eficiencia del rendimiento, Optimización de costes y Sostenibilidad. La escalabilidad no es un pilar."},
+{t:"Una empresa necesita descubrir y proteger datos confidenciales, como información personal (PII), almacenados en Amazon S3. ¿Qué servicio debe usar?",o:["Amazon Macie","Amazon Inspector","AWS Shield","Amazon Detective"],a:[0],e:"Amazon Macie usa machine learning para descubrir y clasificar datos sensibles (PII, datos financieros) en buckets de S3."},
+{t:"¿Qué servicio evalúa automáticamente las instancias EC2 y las imágenes de contenedores en busca de vulnerabilidades de software?",o:["Amazon GuardDuty","Amazon Inspector","AWS Config","AWS Artifact"],a:[1],e:"Amazon Inspector escanea EC2, imágenes en ECR y funciones Lambda en busca de vulnerabilidades (CVE) y exposición de red."},
+{t:"Una empresa quiere registrar los cambios de configuración de sus recursos de AWS y evaluar si cumplen con reglas internas. ¿Qué servicio debe usar?",o:["AWS Config","AWS CloudTrail","Amazon CloudWatch","AWS Trusted Advisor"],a:[0],e:"AWS Config registra el historial de configuración de los recursos y evalúa su cumplimiento frente a reglas definidas."},
+{t:"Una empresa con varias cuentas de AWS quiere recibir una sola factura y aprovechar descuentos por volumen. ¿Qué servicio debe usar?",o:["AWS Organizations (facturación consolidada)","AWS Budgets","AWS Cost Explorer","AWS Control Tower"],a:[0],e:"AWS Organizations ofrece facturación consolidada: una factura para todas las cuentas y suma del uso para obtener descuentos por volumen."},
+{t:"Una empresa quiere migrar una base de datos Oracle a Amazon Aurora con un tiempo de inactividad mínimo. ¿Qué servicio debe usar?",o:["AWS Database Migration Service (DMS)","AWS DataSync","AWS Snowball","AWS Application Migration Service"],a:[0],e:"AWS DMS migra bases de datos manteniendo la base de origen operativa; junto con la Schema Conversion Tool permite migraciones heterogéneas como Oracle → Aurora."},
+{t:"¿Qué principio de seguridad recomienda otorgar a los usuarios solo los permisos que necesitan para realizar su trabajo?",o:["Defensa en profundidad","Principio de privilegio mínimo","Cifrado en reposo","Responsabilidad compartida"],a:[1],e:"El privilegio mínimo (least privilege) consiste en conceder únicamente los permisos estrictamente necesarios, reduciendo el riesgo si una credencial se ve comprometida."},
+{t:"¿Cuál es el plan de AWS Support más económico que ofrece acceso 24/7 por teléfono a ingenieros de soporte en la nube?",o:["Basic","Developer","Business","Enterprise"],a:[2],e:"Business es el plan más económico con acceso 24/7 por teléfono, correo y chat. Developer solo ofrece correo en horario laboral y Basic no incluye soporte técnico."},
+{"t": "Una empresa aloja una aplicación web en AWS. La empresa ha mejorado la disponibilidad de su aplicación aprovisionando múltiples instancias de Amazon EC2. La empresa desea distribuir el tráfico entre las instancias EC2 mientras proporciona un único punto de contacto para los clientes web. ¿Qué servicio de AWS puede distribuir el tráfico hacia múltiples instancias EC2 como destinos?", "o": ["VPC endpoints", "Application Load Balancer", "NAT gateway", "Internet gateway"], "a": [1], "e": "Application Load Balancer distribuye el tráfico HTTP y HTTPS entre destinos, como instancias EC2, y proporciona un único punto de contacto para los clientes. Los endpoints de VPC permiten acceso privado a servicios; las gateways NAT e Internet no balancean el tráfico de la aplicación entre instancias."},
+{"t": "Una empresa desea migrar su base de datos SQL Server que actualmente se ejecuta on-premises hacia la nube de AWS. La empresa desea que AWS se encargue de la administración diaria de la base de datos. ¿Qué servicio de AWS cumple con estos requisitos?", "o": ["Amazon EC2 for Microsoft SQL Server", "Amazon DynamoDB", "Amazon RDS", "Amazon Aurora"], "a": [2], "e": "Amazon RDS for SQL Server administra tareas como copias de seguridad y mantenimiento del motor. En EC2, el cliente administra la base de datos. DynamoDB es NoSQL y Aurora es compatible con MySQL y PostgreSQL, no con el motor SQL Server. El cliente sigue siendo responsable de sus datos y de la configuración de acceso."},
+{"t": "Una empresa necesita filtrado de red sin estado (stateless) para su VPC. ¿Qué servicio, herramienta o característica de AWS cumple con este requisito?", "o": ["AWS PrivateLink", "Security group", "Network access control list (ACL)", "AWS WAF"], "a": [2], "e": "Las ACL de red filtran tráfico a nivel de subred y son sin estado: las reglas de entrada y salida se evalúan por separado, incluido el tráfico de respuesta. Los grupos de seguridad son con estado. AWS WAF filtra solicitudes web y PrivateLink proporciona conectividad privada."},
+{"t": "Una empresa ha migrado toda su infraestructura a la nube de AWS. Para planificar cada trimestre, el equipo financiero desea hacer seguimiento del costo y uso de todos los recursos correspondientes a meses anteriores. El equipo financiero desea generar automáticamente reportes que contengan estos datos. ¿Qué servicio o característica de AWS debería utilizar para cumplir con estos requisitos?", "o": ["Amazon Detective", "AWS Pricing Calculator", "AWS Cost Explorer", "AWS Savings Plans"], "a": [2], "e": "Entre estas opciones, AWS Cost Explorer permite consultar y analizar costos y uso históricos mediante gráficos e informes con datos que se actualizan automáticamente. Pricing Calculator estima costos de arquitecturas; Savings Plans ofrece descuentos por compromiso y Detective investiga eventos de seguridad. Para exportaciones detalladas programadas se pueden utilizar AWS Data Exports y los informes de costos y uso."},
+{"t": "Una empresa desea un servicio totalmente administrado que centralice y automatice la protección de datos en servicios de AWS y cargas de trabajo híbridas. ¿Qué servicio de AWS cumple con estos requisitos?", "o": ["AWS Artifact", "AWS Backup", "AWS Batch", "AWS Shield"], "a": [1], "e": "AWS Backup centraliza y automatiza las copias de seguridad mediante políticas para servicios compatibles de AWS y cargas híbridas compatibles. Artifact ofrece documentos de cumplimiento, Batch ejecuta trabajos por lotes y Shield protege contra ataques DDoS."},
+{"t": "Una empresa tiene una aplicación on-premises. La aplicación tiene tiempos de procesamiento menores a 5 minutos y se ejecuta solo unas pocas veces al día. La empresa desea mover la aplicación a la nube de AWS. ¿Qué servicio de AWS soportará esta aplicación de la forma MÁS rentable?", "o": ["Amazon Elastic Container Service (Amazon ECS)", "AWS Lambda", "Amazon Elastic Kubernetes Service (Amazon EKS)", "Amazon EC2"], "a": [1], "e": "AWS Lambda es adecuado para ejecuciones breves y esporádicas compatibles con su entorno: se cobra por solicitudes y duración de ejecución sin mantener un servidor dedicado activo entre ejecuciones. La elección supone que la aplicación puede adaptarse a Lambda y no requiere características incompatibles con este servicio."},
+{"t": "Una empresa desea una opción rentable para ejecutar sus aplicaciones en instancias de Amazon EC2 durante períodos cortos. Las aplicaciones pueden ser interrumpidas. ¿Qué tipo de instancia de EC2 cumple con estos requisitos?", "o": ["Spot Instances", "On-Demand Instances", "Reserved Instances", "Dedicated Instances"], "a": [0], "e": "Las instancias Spot aprovechan capacidad disponible de EC2 con descuentos y pueden ser interrumpidas. Son apropiadas para cargas flexibles que toleran interrupciones. Las instancias reservadas requieren un compromiso y las dedicadas atienden necesidades de aislamiento."},
+{"t": "¿Cuáles de los siguientes servicios de AWS son serverless? (Seleccione DOS.) Para MSK y EMR, considere las modalidades aprovisionadas indicadas en las opciones.", "o": ["AWS Fargate", "Amazon Managed Streaming for Apache Kafka (MSK Provisioned)", "Amazon EMR (clústeres sobre EC2)", "Amazon S3", "Amazon EC2"], "a": [0, 3], "e": "AWS Fargate ejecuta contenedores sin administrar servidores y Amazon S3 ofrece almacenamiento de objetos sin aprovisionar servidores. EC2 requiere administrar instancias. Aclaración sobre la captura original: también existen MSK Serverless y EMR Serverless; aquí las opciones MSK y EMR se refieren expresamente a modalidades aprovisionadas."},
+{"t": "¿Qué servicio de AWS está siempre disponible sin costo adicional por el propio servicio para los usuarios?", "o": ["Amazon Athena", "AWS Identity and Access Management (IAM)", "AWS Secrets Manager", "Amazon ElastiCache"], "a": [1], "e": "AWS IAM permite administrar identidades y permisos sin cargo adicional por el servicio. Los recursos de AWS a los que se accede mediante IAM pueden generar cargos. Athena, Secrets Manager y ElastiCache tienen precios asociados a su uso."}
+];
+const N=65,L="ABCDE",app=document.getElementById('app');
+let set=[],i=0,ok=0,ans=[],sel=[],done=false;
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const synth=('speechSynthesis' in window)?window.speechSynthesis:null;
+let voiceOn=true,lastTalk='';
+try{voiceOn=localStorage.getItem('voz')!=='off'}catch(e){}
+const vt=document.getElementById('vt');
+const paintVt=()=>{vt.setAttribute('aria-pressed',voiceOn);vt.textContent=voiceOn?'🔊 Asistente de voz: activado':'🔇 Asistente de voz: desactivado'};
+if(!synth){vt.textContent='Voz no disponible en este navegador';vt.disabled=true}else paintVt();
+vt.onclick=()=>{voiceOn=!voiceOn;try{localStorage.setItem('voz',voiceOn?'on':'off')}catch(e){}paintVt();if(!voiceOn)stopTalk()};
+let voiceName='',userName='';
+try{voiceName=localStorage.getItem('vozNombre')||'';userName=localStorage.getItem('nombre')||''}catch(e){}
+const score=x=>{let s=0;const n=x.name,l=x.lang||'';
+  if(/es[-_]MX/i.test(l))s+=4;else if(/es[-_](US|419)/i.test(l))s+=3;else if(/^es/i.test(l))s+=1;else return -99;
+  if(/natural|online|neural/i.test(n))s+=8;if(/google/i.test(n))s+=5;
+  if(/dalia|paulina|m[oó]nica|sabina|paloma|elvira|helena|renata|marisol|larissa|ximena/i.test(n))s+=3;
+  if(/jorge|pablo|ra[uú]l|juan|diego|enrique|desktop|compact|eloquence/i.test(n))s-=2;return s};
+const esVoices=()=>synth?synth.getVoices().filter(x=>/^es/i.test(x.lang)).sort((a,b)=>score(b)-score(a)):[];
+const pickVoice=()=>{const v=esVoices();return v.find(x=>x.name===voiceName)||v[0]};
+const setTalk=on=>{const el=document.getElementById('va');if(el)el.classList.toggle('talk',on)};
+function stopTalk(){if(synth)synth.cancel();setTalk(false)}
+function speak(text){
+  if(!synth||!voiceOn)return;
+  try{synth.cancel();const v=pickVoice();
+    const parts=text.match(/[^.!?¿¡]*[¿¡]?[^.!?]*[.!?]+|\S[^.!?]*$/g)||[text];
+    parts.map(p=>p.trim()).filter(Boolean).forEach((p,k,arr)=>{
+      const u=new SpeechSynthesisUtterance(p);u.lang=v?v.lang:'es-MX';if(v)u.voice=v;
+      u.rate=.92;u.pitch=1.12;u.volume=1;
+      if(k===0)u.onstart=()=>setTalk(true);
+      if(k===arr.length-1)u.onend=()=>setTalk(false);
+      u.onerror=()=>setTalk(false);synth.speak(u)})}catch(e){}
+}
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const forVoice=s=>s.replace(/(\d)\.(\d)/g,'$1 punto $2').replace(/\(([A-Z0-9]{2,6})\)/g,'').replace(/→/g,' a ').replace(/~/g,'aproximadamente ').replace(/\//g,' o ').replace(/:/g,',').replace(/\s+/g,' ');
+function friendly(q,sel){
+  const yo=sel.map(k=>q.o[k]).join(' y '),c=q.a.map(k=>q.o[k]).join(' y '),nm=userName?', '+userName:'';
+  const hi=pick([`¡Ay, casi${nm}!`,`No te preocupes${nm}, esta confunde a muchísima gente.`,`¡Uy! Estuviste cerquita${nm}.`,`Tranqui${nm}, para eso estamos practicando.`,`Oye${nm}, buen intento.`]);
+  const mid=pick(['Mira, te lo explico fácil.','Déjame contarte por qué.','Fíjate en esto.','Va, te cuento el truco.']);
+  const bye=pick(['¿Ves? Ya con esto no se te olvida. ¡Vas muy bien!','¡Ánimo, la siguiente es tuya!','Poquito a poquito, ¡tú puedes!','Así se aprende. ¡Sigamos juntas!','Ya verás que en el examen real la aciertas.']);
+  return forVoice(`${hi} Tú elegiste ${yo}. Pero la respuesta correcta es ${c}. ${mid} ${q.e} ${bye}`);
+}
+const shuffle=a=>{a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a};
+function start(){
+  app.innerHTML=`<div class="card"><span class="tag">Examen de práctica</span>
+  <h1 style="margin-top:14px">AWS Certified Cloud Practitioner</h1>
+  <p class="mute">Banco de ${Q.length} preguntas · se eligen ${Math.min(N,Q.length)} al azar en cada intento.</p>
+  <ul class="rules"><li>Cada pregunta muestra si acertaste y una explicación.</li>
+  <li>Si te equivocas, verás qué elegiste, cuál era la correcta y por qué.</li>
+  <li>En las preguntas de "Seleccione DOS" debes marcar ambas correctas.</li>
+  <li>Al final obtienes tu calificación sobre 100 (aprobatorio: 70).</li></ul>
+  <div class="set">
+    <label>¿Cómo quieres que te llame el asistente? <span class="mute">(opcional)</span><input id="nm" type="text" maxlength="30" placeholder="Tu nombre" value="${esc(userName)}"></label>
+    ${synth?`<label>Voz del asistente<select id="vs"></select></label><div><button class="vb" id="try">▶ Probar voz</button></div>`:''}
+  </div>
+  <div class="act" style="justify-content:flex-start"><button class="btn" id="go">Comenzar examen</button></div></div>`;
+  const nm=document.getElementById('nm');nm.oninput=()=>{userName=nm.value.trim();try{localStorage.setItem('nombre',userName)}catch(e){}};
+  if(synth){const vs=document.getElementById('vs');
+    const fill=()=>{const v=esVoices(),cur=pickVoice();vs.innerHTML=v.length?v.map(x=>`<option value="${esc(x.name)}"${cur&&x.name===cur.name?' selected':''}>${esc(x.name.replace(/Microsoft |Google /,''))} · ${x.lang}${score(x)>=10?' ★ natural':''}</option>`).join(''):'<option>Voz predeterminada</option>'};
+    fill();synth.onvoiceschanged=fill;
+    vs.onchange=()=>{voiceName=vs.value;try{localStorage.setItem('vozNombre',voiceName)}catch(e){}};
+    document.getElementById('try').onclick=()=>{if(!voiceOn){voiceOn=true;paintVt()}speak(`¡Hola${userName?', '+userName:''}! Soy Nube, tu asistente. Cuando te equivoques, yo te explico la respuesta con calma. ¡Vamos a aprobar este examen!`)}}
+  document.getElementById('go').onclick=()=>{set=shuffle(Q).slice(0,N).map(q=>{const idx=shuffle(q.o.map((_,k)=>k));return{...q,o:idx.map(k=>q.o[k]),a:q.a.map(x=>idx.indexOf(x))}});i=0;ok=0;ans=[];show()};
+}
+function show(){
+  const q=set[i],multi=q.a.length>1;sel=[];done=false;
+  app.innerHTML=`<div class="top"><span>Pregunta ${i+1} de ${set.length}</span><span>Aciertos: ${ok}</span></div>
+  <div class="bar"><i style="width:${i/set.length*100}%"></i></div>
+  <div class="card"><span class="tag">${multi?'Selección múltiple · elige '+q.a.length:'Opción única'}</span>
+  <h2>${esc(q.t)}</h2>
+  <div class="opts" id="opts">${q.o.map((o,k)=>`<label class="opt" data-k="${k}"><input type="${multi?'checkbox':'radio'}" name="o" value="${k}"><span class="l">${L[k]}.</span><span>${esc(o)}</span></label>`).join('')}</div>
+  <div id="fb"></div>
+  <div class="act"><button class="btn" id="chk" disabled>Comprobar</button></div></div>`;
+  const opts=document.getElementById('opts'),chk=document.getElementById('chk');
+  opts.addEventListener('change',()=>{if(done)return;sel=[...opts.querySelectorAll('input:checked')].map(x=>+x.value);
+    opts.querySelectorAll('.opt').forEach(el=>el.classList.toggle('on',sel.includes(+el.dataset.k)));
+    chk.disabled=multi?sel.length!==q.a.length:sel.length!==1});
+  chk.onclick=()=>done?next():check();
+}
+function check(){
+  const q=set[i],good=sel.length===q.a.length&&sel.every(x=>q.a.includes(x));done=true;if(good)ok++;
+  ans.push({q,sel:sel.slice(),good});
+  const opts=document.getElementById('opts');opts.classList.add('locked');
+  opts.querySelectorAll('.opt').forEach(el=>{const k=+el.dataset.k;el.querySelector('input').disabled=true;el.classList.remove('on');
+    if(q.a.includes(k))el.classList.add('right');else if(sel.includes(k))el.classList.add('wrong')});
+  const fmt=a=>a.map(k=>`<b>${L[k]}. ${esc(q.o[k])}</b>`).join(' y ');
+  document.getElementById('fb').innerHTML=good
+   ?`<div class="fb ok" role="status"><strong>✓ ¡Correcto, vas muy bien!</strong><p>${esc(q.e)}</p></div>`
+   :`<div class="fb no" role="status"><strong>✗ Incorrecto</strong><p>Elegiste: ${fmt(sel)}</p><p>La respuesta correcta es: ${fmt(q.a)}</p><p><b>Por qué:</b> ${esc(q.e)}</p>
+    <div class="va" id="va"><div class="av" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 21a6 6 0 0 1 .6-11.9A8 8 0 0 1 24.8 11 5 5 0 0 1 24 21z" fill="#ff9900"/><circle cx="13" cy="15" r="1.6" fill="#232f3e"/><circle cx="19" cy="15" r="1.6" fill="#232f3e"/><path d="M13 18.2q3 2.3 6 0" stroke="#232f3e" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg></div>
+    <div class="msg"><b>Nube, tu asistente</b><span class="mute">${synth?(voiceOn?'Te lo estoy explicando en voz alta…':'La voz está desactivada; actívala arriba para escucharme.'):'Tu navegador no permite leer en voz alta.'}</span></div>
+    ${synth?'<button class="vb" id="rep">🔊 Escuchar de nuevo</button><button class="vb" id="stp">⏹ Detener</button>':''}</div></div>`;
+  if(!good){lastTalk=friendly(q,sel);speak(lastTalk);
+    const r=document.getElementById('rep'),s=document.getElementById('stp');
+    if(r)r.onclick=()=>{if(!voiceOn){voiceOn=true;paintVt();try{localStorage.setItem('voz','on')}catch(e){}}speak(lastTalk)};
+    if(s)s.onclick=stopTalk}
+  const b=document.getElementById('chk');b.textContent=i<set.length-1?'Siguiente pregunta →':'Ver resultado';b.focus();
+  document.querySelector('.top span:last-child').textContent='Aciertos: '+ok;
+}
+function next(){stopTalk();i++;if(i<set.length){show();window.scrollTo({top:0})}else result()}
+function result(){
+  const n=set.length,p=Math.round(ok/n*100),pass=p>=70,bad=ans.filter(a=>!a.good);
+  app.innerHTML=`<div class="card"><span class="tag">Resultado final</span>
+  <div class="score"><div class="ring" style="--p:${p};--c:${pass?'var(--ok)':'var(--bad)'}"><div><span><b>${p}</b><br><small>de 100</small></span></div></div>
+  <div><h1>${pass?'¡Aprobado! Excelente trabajo':'Aún no aprobado, ¡sigue practicando!'}</h1>
+  <p class="mute">Necesitas 70 para aprobar. ${pass?'Estás listo para el examen real.':'Repasa las explicaciones de abajo y vuelve a intentarlo.'}</p>
+  <div class="stats"><div><b style="color:var(--ok)">${ok}</b>Correctas</div><div><b style="color:var(--bad)">${n-ok}</b>Incorrectas</div><div><b>${n}</b>Preguntas</div></div></div></div>
+  <div class="act" style="justify-content:flex-start"><button class="btn" id="re">Nuevo intento</button></div>
+  ${bad.length?`<div class="rev"><h3>Repaso de tus errores (${bad.length})</h3>${bad.map(a=>`<div class="ri"><p class="q">${esc(a.q.t)}</p><p class="y">Tu respuesta: ${a.sel.map(k=>esc(a.q.o[k])).join(' / ')}</p><p class="c">Correcta: ${a.q.a.map(k=>esc(a.q.o[k])).join(' / ')}</p><p class="mute">${esc(a.q.e)}</p></div>`).join('')}</div>`:'<p>¡Sin errores, perfecto!</p>'}</div>`;
+  document.getElementById('re').onclick=()=>{stopTalk();start()};window.scrollTo({top:0});
+}
+start();
+}
+</script>
+</body>
+</html>
