@@ -79,11 +79,13 @@ ul.rules{padding-left:20px;margin:14px 0 22px}ul.rules li{margin:4px 0}
 .vb{font:600 14px Inter,sans-serif;border-radius:18px;padding:8px 14px;min-height:40px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
 @media(max-width:600px){.score{grid-template-columns:1fr;justify-items:center;text-align:center}.stats{justify-content:center}.act .btn{flex:1}header span{margin-left:0;width:100%}.vt{margin-left:0}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.section{margin-top:24px}progress{width:100%;height:12px;accent-color:var(--acc);margin-bottom:18px}.questionGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:8px}.navq,.historyRow{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;min-height:44px;padding:8px;cursor:pointer}.navq.current{border:3px solid var(--selb);background:var(--sel)}.history{display:grid;gap:8px;max-height:350px;overflow:auto}.historyRow{text-align:left;display:grid;gap:3px}.historyRow span{font-size:13px;color:var(--mute)}details{margin-top:16px}summary{cursor:pointer;font-weight:600;padding:10px 0}.tableWrap{overflow:auto}table{width:100%;border-collapse:collapse;text-align:left}td,th{padding:10px;border-bottom:1px solid var(--line)}footer{padding:16px;text-align:center;color:var(--mute);font-size:13px}button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid var(--selb);outline-offset:3px}h1:focus,h2:focus{outline:none}#reviewFilter{padding:8px;background:var(--card);color:var(--ink);max-width:100%}@media(prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
-<header><div class="logo">☁</div><b>Simulador Cloud Practitioner</b><span>Examen de práctica · 65 preguntas</span><button class="vt" id="vt" aria-pressed="true">🔊 Asistente de voz: activado</button></header>
-<main id="app"></main>
+<header><div class="logo">☁</div><b>Simulador Cloud Practitioner</b><span>Práctica y examen</span><button class="vt" id="vt" aria-pressed="true">🔊 Asistente de voz: activado</button></header>
+<main id="app"></main><footer id="storage" role="status"></footer>
 <script>
 {
 const Q=[
@@ -169,117 +171,81 @@ const Q=[
 {"t": "¿Cuáles de los siguientes servicios de AWS son serverless? (Seleccione DOS.) Para MSK y EMR, considere las modalidades aprovisionadas indicadas en las opciones.", "o": ["AWS Fargate", "Amazon Managed Streaming for Apache Kafka (MSK Provisioned)", "Amazon EMR (clústeres sobre EC2)", "Amazon S3", "Amazon EC2"], "a": [0, 3], "e": "AWS Fargate ejecuta contenedores sin administrar servidores y Amazon S3 ofrece almacenamiento de objetos sin aprovisionar servidores. EC2 requiere administrar instancias. Aclaración sobre la captura original: también existen MSK Serverless y EMR Serverless; aquí las opciones MSK y EMR se refieren expresamente a modalidades aprovisionadas."},
 {"t": "¿Qué servicio de AWS está siempre disponible sin costo adicional por el propio servicio para los usuarios?", "o": ["Amazon Athena", "AWS Identity and Access Management (IAM)", "AWS Secrets Manager", "Amazon ElastiCache"], "a": [1], "e": "AWS IAM permite administrar identidades y permisos sin cargo adicional por el servicio. Los recursos de AWS a los que se accede mediante IAM pueden generar cargos. Athena, Secrets Manager y ElastiCache tienen precios asociados a su uso."}
 ];
-const N=65,L="ABCDE",app=document.getElementById('app');
-let set=[],i=0,ok=0,ans=[],sel=[],done=false;
-const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const synth=('speechSynthesis' in window)?window.speechSynthesis:null;
-let voiceOn=true,lastTalk='';
-try{voiceOn=localStorage.getItem('voz')!=='off'}catch(e){}
-const vt=document.getElementById('vt');
-const paintVt=()=>{vt.setAttribute('aria-pressed',voiceOn);vt.textContent=voiceOn?'🔊 Asistente de voz: activado':'🔇 Asistente de voz: desactivado'};
-if(!synth){vt.textContent='Voz no disponible en este navegador';vt.disabled=true}else paintVt();
-vt.onclick=()=>{voiceOn=!voiceOn;try{localStorage.setItem('voz',voiceOn?'on':'off')}catch(e){}paintVt();if(!voiceOn)stopTalk()};
-let voiceName='',userName='';
-try{voiceName=localStorage.getItem('vozNombre')||'';userName=localStorage.getItem('nombre')||''}catch(e){}
-const score=x=>{let s=0;const n=x.name,l=x.lang||'';
-  if(/es[-_]MX/i.test(l))s+=4;else if(/es[-_](US|419)/i.test(l))s+=3;else if(/^es/i.test(l))s+=1;else return -99;
-  if(/natural|online|neural/i.test(n))s+=8;if(/google/i.test(n))s+=5;
-  if(/dalia|paulina|m[oó]nica|sabina|paloma|elvira|helena|renata|marisol|larissa|ximena/i.test(n))s+=3;
-  if(/jorge|pablo|ra[uú]l|juan|diego|enrique|desktop|compact|eloquence/i.test(n))s-=2;return s};
-const esVoices=()=>synth?synth.getVoices().filter(x=>/^es/i.test(x.lang)).sort((a,b)=>score(b)-score(a)):[];
-const pickVoice=()=>{const v=esVoices();return v.find(x=>x.name===voiceName)||v[0]};
-const setTalk=on=>{const el=document.getElementById('va');if(el)el.classList.toggle('talk',on)};
-function stopTalk(){if(synth)synth.cancel();setTalk(false)}
-function speak(text){
-  if(!synth||!voiceOn)return;
-  try{synth.cancel();const v=pickVoice();
-    const parts=text.match(/[^.!?¿¡]*[¿¡]?[^.!?]*[.!?]+|\S[^.!?]*$/g)||[text];
-    parts.map(p=>p.trim()).filter(Boolean).forEach((p,k,arr)=>{
-      const u=new SpeechSynthesisUtterance(p);u.lang=v?v.lang:'es-MX';if(v)u.voice=v;
-      u.rate=.92;u.pitch=1.12;u.volume=1;
-      if(k===0)u.onstart=()=>setTalk(true);
-      if(k===arr.length-1)u.onend=()=>setTalk(false);
-      u.onerror=()=>setTalk(false);synth.speak(u)})}catch(e){}
+const app=document.getElementById('app'),$=id=>document.getElementById(id),KEY='cloud-practice-v2';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let db={prefs:{name:'',voice:'',rate:1,on:true},session:null,history:[]},timer=null;
+try{const saved=JSON.parse(localStorage.getItem(KEY));if(saved&&saved.prefs&&Array.isArray(saved.history))db=saved}catch{}
+const groups={
+'Conceptos de nube':[4,7,8,16,24,34,37,41,43,65],
+'Seguridad y cumplimiento':[3,29,32,33,39,40,42,48,49,50,51,54,66,67,68,71,75,81],
+'Facturación, precios y soporte':[1,13,17,20,38,52,53,62,69,72,76,79]};
+Q.forEach((q,k)=>{q.id=k;q.domain=Object.keys(groups).find(d=>groups[d].includes(k+1))||'Tecnología y servicios';});
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db));$('storage').textContent='Avance e historial guardados en este navegador.'}catch{$('storage').textContent='No se pudo guardar: revisa el almacenamiento del navegador. Mantén esta página abierta.'}}
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const correct=r=>r.sel.length===Q[r.id].a.length&&r.sel.every(x=>Q[r.id].a.includes(x));
+const complete=r=>r.sel.length===Q[r.id].a.length;
+const duration=s=>Math.max(0,Math.floor(((s.finished||Date.now())-s.started)/1000));
+const clock=n=>Math.floor(Math.max(0,n)/60)+':'+String(Math.max(0,n)%60).padStart(2,'0');
+const synth=window.speechSynthesis;
+let speechToken=0;
+function stop(){speechToken++;if(synth)synth.cancel();if($('voiceStatus'))$('voiceStatus').textContent='Audio detenido.'}
+function speak(text){stop();if(!synth||!db.prefs.on){if($('voiceStatus'))$('voiceStatus').textContent='Activa la voz para escuchar.';return}const token=speechToken;const u=new SpeechSynthesisUtterance(text);u.lang='es-MX';u.voice=synth.getVoices().find(v=>v.name===db.prefs.voice)||synth.getVoices().find(v=>/^es/.test(v.lang))||null;u.rate=Number(db.prefs.rate);u.onstart=()=>{if(token===speechToken&&$('voiceStatus'))$('voiceStatus').textContent='Reproduciendo…'};u.onend=()=>{if(token===speechToken&&$('voiceStatus'))$('voiceStatus').textContent='Lectura terminada.'};u.onerror=()=>{if(token===speechToken&&$('voiceStatus'))$('voiceStatus').textContent='No se pudo reproducir el audio.'};synth.speak(u)}
+function voiceButton(){$('vt').textContent=db.prefs.on?'🔊 Voz activada':'🔇 Voz desactivada';$('vt').setAttribute('aria-pressed',String(db.prefs.on));if(!synth){$('vt').disabled=true;$('vt').textContent='Voz no disponible'}}
+$('vt').onclick=()=>{db.prefs.on=!db.prefs.on;stop();voiceButton();save()};voiceButton();
+function frame(html){stop();clearInterval(timer);app.innerHTML=html;const heading=app.querySelector('h1,h2');if(heading){heading.tabIndex=-1;heading.focus()}window.scrollTo(0,0)}
+function voices(){if(!$('voice'))return;const list=synth?synth.getVoices().filter(v=>/^es/.test(v.lang)):[];$('voice').innerHTML='<option value="">Automática (español)</option>'+list.map(v=>`<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');$('voice').value=db.prefs.voice}
+if(synth)synth.onvoiceschanged=voices;
+function home(){
+const active=db.session&&!db.session.finished,history=db.history;
+frame(`<div class="card"><span class="tag">Tu espacio de estudio</span><h1>Cloud Practitioner</h1><p class="mute">${Q.length} preguntas · práctica independiente de AWS</p>
+${active?'<div class="fb ok"><strong>Tienes un intento pendiente</strong><p>Continúa con tus respuestas guardadas. El tiempo del modo examen sigue corriendo al cerrar la página.</p><button class="btn" id="resume">Continuar intento</button></div>':''}
+<div class="set"><label>Tu nombre<input id="name" maxlength="30" value="${esc(db.prefs.name)}" placeholder="Opcional"></label>
+<label>Modo<select id="mode"><option value="practice">Práctica · explicación al comprobar</option><option value="exam">Examen · resultados al finalizar</option></select></label>
+<label>Cantidad de preguntas<select id="count">${[10,20,30,65,Q.length].map(n=>`<option value="${n}" ${n===65?'selected':''}>${n===Q.length?'Todas ('+n+')':n}</option>`).join('')}</select></label>
+<label>Tema<select id="domain"><option value="all">Todos los temas</option>${[...new Set(Q.map(q=>q.domain))].map(d=>`<option>${d}</option>`).join('')}</select></label>
+<label>Tiempo del examen (minutos)<input id="minutes" type="number" min="1" max="240" value="90"></label>
+<label>Voz<select id="voice"></select></label><label>Velocidad<select id="rate">${[.75,1,1.25,1.5].map(r=>`<option value="${r}" ${r===Number(db.prefs.rate)?'selected':''}>${r}×</option>`).join('')}</select></label>
+<button class="vb" id="testVoice">Probar voz</button><p id="voiceStatus" role="status"></p></div>
+<p>Meta de práctica: 70 %. Este porcentaje no equivale a la puntuación escalada del examen oficial ni garantiza aprobarlo.</p><div class="act"><button class="btn" id="begin">Comenzar</button></div></div>
+<section class="card section"><h2>Tu historial</h2>${history.length?`<p>Últimos ${history.length} intentos guardados en este navegador.</p><div class="history">${history.slice().reverse().map(h=>`<button class="historyRow" data-history="${h.uid}"><b>${h.score}% · ${h.mode==='exam'?'Examen':'Práctica'}</b><span>${new Date(h.finished).toLocaleString('es-MX')} · ${h.rows.length} preguntas · ${clock(duration(h))}</span></button>`).join('')}</div><h3>Preguntas que fallas con frecuencia</h3>${frequent()}`:'<p class="mute">Al terminar tu primer intento aparecerá aquí.</p>'}</section>`);
+voices();$('minutes').disabled=true;$('mode').onchange=()=>{$('minutes').disabled=$('mode').value!=='exam'};
+for(const [id,key] of [['name','name'],['voice','voice'],['rate','rate']])$(id).onchange=()=>{db.prefs[key]=$(id).value;save()};
+$('testVoice').onclick=()=>{db.prefs.on=true;voiceButton();save();speak('Hola '+db.prefs.name+'. Soy Nube, tu asistente de estudio.')};
+if(active)$('resume').onclick=()=>{if(!expired())show()};
+$('begin').onclick=()=>{const minutes=Number($('minutes').value);if($('mode').value==='exam'&&(!Number.isInteger(minutes)||minutes<1||minutes>240)){alert('Elige entre 1 y 240 minutos.');return}if(active&&!confirm('¿Reemplazar el intento pendiente por uno nuevo?'))return;const pool=Q.filter(q=>$('domain').value==='all'||q.domain===$('domain').value);launch(shuffle(pool.map(q=>q.id)).slice(0,Number($('count').value)),$('mode').value,minutes)};
+app.querySelectorAll('[data-history]').forEach(b=>b.onclick=()=>results(db.history.find(h=>h.uid===b.dataset.history)));
 }
-const pick=a=>a[Math.floor(Math.random()*a.length)];
-const forVoice=s=>s.replace(/(\d)\.(\d)/g,'$1 punto $2').replace(/\(([A-Z0-9]{2,6})\)/g,'').replace(/→/g,' a ').replace(/~/g,'aproximadamente ').replace(/\//g,' o ').replace(/:/g,',').replace(/\s+/g,' ');
-function friendly(q,sel){
-  const yo=sel.map(k=>q.o[k]).join(' y '),c=q.a.map(k=>q.o[k]).join(' y '),nm=userName?', '+userName:'';
-  const hi=pick([`¡Ay, casi${nm}!`,`No te preocupes${nm}, esta confunde a muchísima gente.`,`¡Uy! Estuviste cerquita${nm}.`,`Tranqui${nm}, para eso estamos practicando.`,`Oye${nm}, buen intento.`]);
-  const mid=pick(['Mira, te lo explico fácil.','Déjame contarte por qué.','Fíjate en esto.','Va, te cuento el truco.']);
-  const bye=pick(['¿Ves? Ya con esto no se te olvida. ¡Vas muy bien!','¡Ánimo, la siguiente es tuya!','Poquito a poquito, ¡tú puedes!','Así se aprende. ¡Sigamos juntas!','Ya verás que en el examen real la aciertas.']);
-  return forVoice(`${hi} Tú elegiste ${yo}. Pero la respuesta correcta es ${c}. ${mid} ${q.e} ${bye}`);
+function frequent(){const tally={};db.history.forEach(h=>h.rows.forEach(r=>{if(!correct(r))tally[r.id]=(tally[r.id]||0)+1}));return Object.entries(tally).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,n])=>`<p>${esc(Q[id].t)} <b>(${n} ${n===1?'error':'errores'})</b></p>`).join('')||'<p>¡Todavía no tienes errores!</p>'}
+function launch(ids,mode='practice',minutes=90){const now=Date.now();db.session={uid:String(now)+'-'+Math.random().toString(36).slice(2),mode,started:now,deadline:mode==='exam'?now+minutes*60000:null,index:0,rows:ids.map(id=>({id,order:shuffle(Q[id].o.map((_,k)=>k)),sel:[],checked:false,flag:false}))};save();show()}
+function expired(){const s=db.session;if(s&&!s.finished&&s.deadline&&Date.now()>=s.deadline){finish(true);return true}return false}
+function tick(){if(expired())return;const s=db.session;if($('time'))$('time').textContent=s.deadline?'Restante: '+clock(Math.ceil((s.deadline-Date.now())/1000)):'Tiempo: '+clock(duration(s))}
+function show(){if(expired())return;const s=db.session,r=s.rows[s.index],q=Q[r.id],locked=s.mode==='practice'&&r.checked;
+frame(`<div class="top"><span>Pregunta ${s.index+1} de ${s.rows.length} · ${s.mode==='exam'?'Examen':'Práctica'}</span><span id="time"></span></div><progress max="${s.rows.length}" value="${s.rows.filter(complete).length}" aria-label="Preguntas respondidas"></progress><div class="card"><span class="tag">${q.domain}</span><h2>${esc(q.t)}</h2><p>${q.a.length>1?'Selecciona '+q.a.length+' respuestas.':'Selecciona una respuesta.'}</p><div class="opts">${r.order.map((k,j)=>`<label class="opt ${r.sel.includes(k)?'on':''} ${locked&&q.a.includes(k)?'right':''} ${locked&&r.sel.includes(k)&&!q.a.includes(k)?'wrong':''}"><input type="${q.a.length>1?'checkbox':'radio'}" name="answer" value="${k}" ${r.sel.includes(k)?'checked':''} ${locked?'disabled':''}><span class="l">${'ABCDE'[j]}.</span><span>${esc(q.o[k])}</span></label>`).join('')}</div>
+<div class="act"><button class="vb" id="flag" aria-pressed="${r.flag}">${r.flag?'★ Marcada con duda':'☆ Tengo dudas'}</button><button class="vb" id="read">Leer pregunta y opciones</button><button class="vb" id="stop">Detener voz</button></div><p id="voiceStatus" role="status"></p>
+${locked?feedback(r)+'<button class="vb" id="explainVoice">Escuchar explicación</button>':''}<div class="act">${s.mode==='practice'&&!locked?'<button class="btn" id="check" '+(!complete(r)?'disabled':'')+'>Comprobar</button>':''}</div>
+<div class="act"><button class="btn sec" id="prev" ${s.index===0?'disabled':''}>Anterior</button><button class="btn sec" id="next" ${s.index===s.rows.length-1?'disabled':''}>Siguiente</button><button class="btn" id="finish">Finalizar intento</button></div></div>
+<section class="card section"><h2>Panel de preguntas</h2><p class="mute">○ Pendiente · ● Respondida · ★ Con duda</p><div class="questionGrid">${s.rows.map((row,i)=>`<button class="navq ${i===s.index?'current':''}" data-index="${i}" aria-label="Pregunta ${i+1}, ${row.flag?'con duda, ':''}${complete(row)?'respondida':'pendiente'}" ${i===s.index?'aria-current="step"':''}>${row.flag?'★':complete(row)?'●':'○'} ${i+1}</button>`).join('')}</div><div class="act"><button class="vb" id="home">Guardar y volver al inicio</button></div></section>`);
+app.querySelectorAll('input[name=answer]').forEach(input=>input.onchange=()=>{if(expired())return;r.sel=[...app.querySelectorAll('input[name=answer]:checked')].map(x=>Number(x.value));save();app.querySelectorAll('.opt').forEach(el=>el.classList.toggle('on',el.querySelector('input').checked));if($('check'))$('check').disabled=!complete(r);app.querySelector('progress').value=s.rows.filter(complete).length;const b=app.querySelector(`[data-index="${s.index}"]`);b.textContent=(r.flag?'★':complete(r)?'●':'○')+' '+(s.index+1);b.setAttribute('aria-label',`Pregunta ${s.index+1}, ${r.flag?'con duda, ':''}${complete(r)?'respondida':'pendiente'}`)});
+$('flag').onclick=()=>{if(expired())return;r.flag=!r.flag;save();show()};$('read').onclick=()=>speak(q.t+' '+r.order.map((k,j)=>'Opción '+'ABCDE'[j]+'. '+q.o[k]+'.').join(' '));$('stop').onclick=stop;
+if($('check'))$('check').onclick=()=>{if(expired()||!complete(r))return;r.checked=true;save();show();if(!correct(r))speak('La respuesta correcta es '+q.a.map(k=>q.o[k]).join(' y ')+'. '+q.e)};
+if($('explainVoice'))$('explainVoice').onclick=()=>speak(q.e);
+function go(n){if(expired())return;s.index=n;save();show()}
+$('prev').onclick=()=>go(s.index-1);$('next').onclick=()=>go(s.index+1);app.querySelectorAll('[data-index]').forEach(b=>b.onclick=()=>go(Number(b.dataset.index)));
+$('finish').onclick=()=>{if(expired())return;const left=s.rows.filter(r=>!complete(r)).length;if(confirm(`¿Finalizar el intento? ${left?left+' preguntas están pendientes o incompletas y contarán como incorrectas.':'Podrás revisar todas las explicaciones.'}`))finish(false)};
+$('home').onclick=()=>{save();home()};tick();timer=setInterval(tick,1000)
 }
-const shuffle=a=>{a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a};
-function start(){
-  app.innerHTML=`<div class="card"><span class="tag">Examen de práctica</span>
-  <h1 style="margin-top:14px">AWS Certified Cloud Practitioner</h1>
-  <p class="mute">Banco de ${Q.length} preguntas · se eligen ${Math.min(N,Q.length)} al azar en cada intento.</p>
-  <ul class="rules"><li>Cada pregunta muestra si acertaste y una explicación.</li>
-  <li>Si te equivocas, verás qué elegiste, cuál era la correcta y por qué.</li>
-  <li>En las preguntas de "Seleccione DOS" debes marcar ambas correctas.</li>
-  <li>Al final obtienes tu calificación sobre 100 (aprobatorio: 70).</li></ul>
-  <div class="set">
-    <label>¿Cómo quieres que te llame el asistente? <span class="mute">(opcional)</span><input id="nm" type="text" maxlength="30" placeholder="Tu nombre" value="${esc(userName)}"></label>
-    ${synth?`<label>Voz del asistente<select id="vs"></select></label><div><button class="vb" id="try">▶ Probar voz</button></div>`:''}
-  </div>
-  <div class="act" style="justify-content:flex-start"><button class="btn" id="go">Comenzar examen</button></div></div>`;
-  const nm=document.getElementById('nm');nm.oninput=()=>{userName=nm.value.trim();try{localStorage.setItem('nombre',userName)}catch(e){}};
-  if(synth){const vs=document.getElementById('vs');
-    const fill=()=>{const v=esVoices(),cur=pickVoice();vs.innerHTML=v.length?v.map(x=>`<option value="${esc(x.name)}"${cur&&x.name===cur.name?' selected':''}>${esc(x.name.replace(/Microsoft |Google /,''))} · ${x.lang}${score(x)>=10?' ★ natural':''}</option>`).join(''):'<option>Voz predeterminada</option>'};
-    fill();synth.onvoiceschanged=fill;
-    vs.onchange=()=>{voiceName=vs.value;try{localStorage.setItem('vozNombre',voiceName)}catch(e){}};
-    document.getElementById('try').onclick=()=>{if(!voiceOn){voiceOn=true;paintVt()}speak(`¡Hola${userName?', '+userName:''}! Soy Nube, tu asistente. Cuando te equivoques, yo te explico la respuesta con calma. ¡Vamos a aprobar este examen!`)}}
-  document.getElementById('go').onclick=()=>{set=shuffle(Q).slice(0,N).map(q=>{const idx=shuffle(q.o.map((_,k)=>k));return{...q,o:idx.map(k=>q.o[k]),a:q.a.map(x=>idx.indexOf(x))}});i=0;ok=0;ans=[];show()};
+function feedback(r){const q=Q[r.id];return `<div class="fb ${correct(r)?'ok':'no'}" role="status"><strong>${correct(r)?'✓ Correcto':'✗ Incorrecto'}</strong><p><b>Tu respuesta:</b> ${r.sel.length?r.sel.map(k=>esc(q.o[k])).join(' / '):'Sin responder'}</p><p><b>Correcta:</b> ${q.a.map(k=>esc(q.o[k])).join(' / ')}</p><p>${esc(q.e)}</p></div><details><summary>Analizar las opciones incorrectas</summary><p>Compara cada alternativa con el requisito del enunciado y la explicación:</p>${q.o.map((o,k)=>q.a.includes(k)?'':`<p><b>${esc(o)}</b>: ${esc(reason(q,o))}</p>`).join('')}</details>`}
+function reason(q,o){const roles=[[/Pricing Calculator|Calculadora de precios/i,'estima costos antes del despliegue'],[/Cost Explorer/i,'analiza costos y uso'],[/AWS Backup/i,'centraliza copias de seguridad'],[/AWS Artifact/i,'proporciona informes y acuerdos de cumplimiento'],[/AWS Shield/i,'protege contra DDoS'],[/AWS WAF/i,'filtra solicitudes web'],[/CloudTrail/i,'registra eventos y actividad de API'],[/CloudWatch/i,'recopila métricas, registros y alarmas'],[/AWS Config/i,'registra configuraciones y evalúa reglas'],[/GuardDuty/i,'detecta amenazas'],[/Inspector/i,'evalúa vulnerabilidades'],[/Detective/i,'ayuda a investigar eventos de seguridad'],[/Macie/i,'descubre datos sensibles en S3'],[/Amazon S3$/i,'almacena objetos'],[/Amazon EBS/i,'proporciona almacenamiento en bloque'],[/Amazon EFS/i,'ofrece un sistema de archivos compartido'],[/DynamoDB/i,'es una base de datos NoSQL'],[/Amazon Aurora/i,'es una base de datos relacional compatible con MySQL y PostgreSQL'],[/Amazon RDS/i,'administra bases de datos relacionales'],[/Redshift/i,'se utiliza para análisis en un almacén de datos'],[/Neptune/i,'es una base de datos de grafos'],[/AWS Lambda/i,'ejecuta código por eventos sin administrar servidores'],[/AWS Fargate/i,'ejecuta contenedores sin administrar servidores'],[/Amazon EC2$/i,'ofrece máquinas virtuales'],[/Amazon SQS/i,'proporciona colas de mensajes'],[/Amazon SNS/i,'distribuye mensajes a suscriptores'],[/AWS Secrets Manager/i,'administra secretos de aplicaciones'],[/AWS KMS|Key Management/i,'administra claves de cifrado'],[/AWS Budgets/i,'define presupuestos y alertas'],[/Route 53/i,'ofrece DNS y políticas de enrutamiento']];const match=roles.find(([rx])=>rx.test(o));return match?`Esta opción ${match[1]}; no es la respuesta que cumple lo solicitado en este escenario. ${q.e}`:`No es una de las respuestas correctas para este escenario. La distinción es: ${q.e}`}
+function finish(timeout){const s=db.session;if(!s||s.finished)return;s.finished=timeout?s.deadline:Date.now();s.timeout=timeout;s.score=Math.round(s.rows.filter(correct).length/s.rows.length*100);db.history.push(JSON.parse(JSON.stringify(s)));db.history=db.history.slice(-50);save();results(s)}
+function results(s){const errors=s.rows.filter(r=>!correct(r)),doubts=s.rows.filter(r=>r.flag),topics=[...new Set(s.rows.map(r=>Q[r.id].domain))];
+frame(`<div class="card"><span class="tag">${s.mode==='exam'?'Examen':'Práctica'} terminado</span><h1>${s.score}% de aciertos</h1><p>${esc(db.prefs.name?db.prefs.name+', ':'')}${s.rows.length-errors.length} correctas de ${s.rows.length} · ${clock(duration(s))}${s.timeout?' · Tiempo agotado':''}</p><p>${s.rows.filter(correct).length/s.rows.length>=.7?'Alcanzaste la meta de práctica.':'Sigue practicando para alcanzar la meta del 70 %.'} Este resultado no equivale a la puntuación oficial de AWS.</p><h2>Resultados por tema</h2><div class="tableWrap"><table><thead><tr><th>Tema</th><th>Aciertos</th><th>Porcentaje</th></tr></thead><tbody>${topics.map(d=>{const rows=s.rows.filter(r=>Q[r.id].domain===d),good=rows.filter(correct).length;return `<tr><td>${d}</td><td>${good}/${rows.length}</td><td>${Math.round(good/rows.length*100)}%</td></tr>`}).join('')}</tbody></table></div><div class="act"><button class="btn" id="retry" ${errors.length?'':'disabled'}>Practicar errores (${errors.length})</button><button class="btn sec" id="doubts" ${doubts.length?'':'disabled'}>Repasar dudas (${doubts.length})</button><button class="btn sec" id="back">Inicio e historial</button></div></div>
+<section class="card section"><h2>Revisión de respuestas</h2><label>Mostrar <select id="reviewFilter"><option value="all">Todas</option><option value="errors">Solo errores</option><option value="flags">Con dudas</option></select></label><div id="review"></div></section>`);
+function review(){const filter=$('reviewFilter').value;$('review').innerHTML=s.rows.filter(r=>filter==='all'||(filter==='errors'&&!correct(r))||(filter==='flags'&&r.flag)).map(r=>`<article class="ri"><h3>${r.flag?'★ ':''}${esc(Q[r.id].t)}</h3>${feedback(r)}</article>`).join('')||'<p>No hay preguntas en este filtro.</p>'}review();$('reviewFilter').onchange=review;
+function retry(rows){if(db.session&&!db.session.finished&&!confirm('¿Reemplazar el intento pendiente por este repaso?'))return;launch(shuffle(rows.map(r=>r.id)))}$('retry').onclick=()=>retry(errors);$('doubts').onclick=()=>retry(doubts);$('back').onclick=home
 }
-function show(){
-  const q=set[i],multi=q.a.length>1;sel=[];done=false;
-  app.innerHTML=`<div class="top"><span>Pregunta ${i+1} de ${set.length}</span><span>Aciertos: ${ok}</span></div>
-  <div class="bar"><i style="width:${i/set.length*100}%"></i></div>
-  <div class="card"><span class="tag">${multi?'Selección múltiple · elige '+q.a.length:'Opción única'}</span>
-  <h2>${esc(q.t)}</h2>
-  <div class="opts" id="opts">${q.o.map((o,k)=>`<label class="opt" data-k="${k}"><input type="${multi?'checkbox':'radio'}" name="o" value="${k}"><span class="l">${L[k]}.</span><span>${esc(o)}</span></label>`).join('')}</div>
-  <div id="fb"></div>
-  <div class="act"><button class="btn" id="chk" disabled>Comprobar</button></div></div>`;
-  const opts=document.getElementById('opts'),chk=document.getElementById('chk');
-  opts.addEventListener('change',()=>{if(done)return;sel=[...opts.querySelectorAll('input:checked')].map(x=>+x.value);
-    opts.querySelectorAll('.opt').forEach(el=>el.classList.toggle('on',sel.includes(+el.dataset.k)));
-    chk.disabled=multi?sel.length!==q.a.length:sel.length!==1});
-  chk.onclick=()=>done?next():check();
-}
-function check(){
-  const q=set[i],good=sel.length===q.a.length&&sel.every(x=>q.a.includes(x));done=true;if(good)ok++;
-  ans.push({q,sel:sel.slice(),good});
-  const opts=document.getElementById('opts');opts.classList.add('locked');
-  opts.querySelectorAll('.opt').forEach(el=>{const k=+el.dataset.k;el.querySelector('input').disabled=true;el.classList.remove('on');
-    if(q.a.includes(k))el.classList.add('right');else if(sel.includes(k))el.classList.add('wrong')});
-  const fmt=a=>a.map(k=>`<b>${L[k]}. ${esc(q.o[k])}</b>`).join(' y ');
-  document.getElementById('fb').innerHTML=good
-   ?`<div class="fb ok" role="status"><strong>✓ ¡Correcto, vas muy bien!</strong><p>${esc(q.e)}</p></div>`
-   :`<div class="fb no" role="status"><strong>✗ Incorrecto</strong><p>Elegiste: ${fmt(sel)}</p><p>La respuesta correcta es: ${fmt(q.a)}</p><p><b>Por qué:</b> ${esc(q.e)}</p>
-    <div class="va" id="va"><div class="av" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M9 21a6 6 0 0 1 .6-11.9A8 8 0 0 1 24.8 11 5 5 0 0 1 24 21z" fill="#ff9900"/><circle cx="13" cy="15" r="1.6" fill="#232f3e"/><circle cx="19" cy="15" r="1.6" fill="#232f3e"/><path d="M13 18.2q3 2.3 6 0" stroke="#232f3e" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg></div>
-    <div class="msg"><b>Nube, tu asistente</b><span class="mute">${synth?(voiceOn?'Te lo estoy explicando en voz alta…':'La voz está desactivada; actívala arriba para escucharme.'):'Tu navegador no permite leer en voz alta.'}</span></div>
-    ${synth?'<button class="vb" id="rep">🔊 Escuchar de nuevo</button><button class="vb" id="stp">⏹ Detener</button>':''}</div></div>`;
-  if(!good){lastTalk=friendly(q,sel);speak(lastTalk);
-    const r=document.getElementById('rep'),s=document.getElementById('stp');
-    if(r)r.onclick=()=>{if(!voiceOn){voiceOn=true;paintVt();try{localStorage.setItem('voz','on')}catch(e){}}speak(lastTalk)};
-    if(s)s.onclick=stopTalk}
-  const b=document.getElementById('chk');b.textContent=i<set.length-1?'Siguiente pregunta →':'Ver resultado';b.focus();
-  document.querySelector('.top span:last-child').textContent='Aciertos: '+ok;
-}
-function next(){stopTalk();i++;if(i<set.length){show();window.scrollTo({top:0})}else result()}
-function result(){
-  const n=set.length,p=Math.round(ok/n*100),pass=p>=70,bad=ans.filter(a=>!a.good);
-  app.innerHTML=`<div class="card"><span class="tag">Resultado final</span>
-  <div class="score"><div class="ring" style="--p:${p};--c:${pass?'var(--ok)':'var(--bad)'}"><div><span><b>${p}</b><br><small>de 100</small></span></div></div>
-  <div><h1>${pass?'¡Aprobado! Excelente trabajo':'Aún no aprobado, ¡sigue practicando!'}</h1>
-  <p class="mute">Necesitas 70 para aprobar. ${pass?'Estás listo para el examen real.':'Repasa las explicaciones de abajo y vuelve a intentarlo.'}</p>
-  <div class="stats"><div><b style="color:var(--ok)">${ok}</b>Correctas</div><div><b style="color:var(--bad)">${n-ok}</b>Incorrectas</div><div><b>${n}</b>Preguntas</div></div></div></div>
-  <div class="act" style="justify-content:flex-start"><button class="btn" id="re">Nuevo intento</button></div>
-  ${bad.length?`<div class="rev"><h3>Repaso de tus errores (${bad.length})</h3>${bad.map(a=>`<div class="ri"><p class="q">${esc(a.q.t)}</p><p class="y">Tu respuesta: ${a.sel.map(k=>esc(a.q.o[k])).join(' / ')}</p><p class="c">Correcta: ${a.q.a.map(k=>esc(a.q.o[k])).join(' / ')}</p><p class="mute">${esc(a.q.e)}</p></div>`).join('')}</div>`:'<p>¡Sin errores, perfecto!</p>'}</div>`;
-  document.getElementById('re').onclick=()=>{stopTalk();start()};window.scrollTo({top:0});
-}
-start();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&db.session&&!db.session.finished)expired()});
+window.addEventListener('pagehide',stop);save();home();
+
 }
 </script>
 </body>
